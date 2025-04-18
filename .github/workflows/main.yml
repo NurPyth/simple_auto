@@ -79,6 +79,7 @@ jobs:
         run: |
           if [ -d pages_history/history ]; then
             cp -r pages_history/history/* allure-results/ || echo "No history files to copy, proceeding without history"
+            ls -l allure-results/  # Debug: Check copied files
           else
             echo "No history directory found, proceeding without history"
           fi
@@ -171,7 +172,13 @@ jobs:
           echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
           allure --version
       - name: Generate Allure report
-        run: allure generate -c allure-results -o _site
+        run: |
+          # Copy history to output directory to ensure trends are included
+          if [ -d allure-results/history ]; then
+            mkdir -p _site/history
+            cp -r allure-results/history/* _site/history/
+          fi
+          allure generate allure-results -o _site
       - name: Upload Allure report
         uses: actions/upload-artifact@v4
         with:
