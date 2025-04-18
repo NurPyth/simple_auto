@@ -27,8 +27,12 @@ jobs:
         run: sudo apt-get install google-chrome-stable
       - name: install dependencies
         run: pip install -r requirements.txt
-      - name: Install xvfb
-        run: sudo apt-get install xvfb
+      - name: Upload Screenshot
+        if: failure()  # Загружает скриншот только при ошибке теста
+        uses: actions/upload-artifact@v3
+        with:
+          name: screenshots
+          path: tests/screenshots/
       - name: first_test
         if: "github.event.inputs.deployment_target == 'first_test'"
         run: pytest tests/test_button_page.py
