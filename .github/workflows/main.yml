@@ -82,6 +82,7 @@ jobs:
             echo "UPLOAD_HISTORY=true" >> $GITHUB_ENV
           else
             echo "UPLOAD_HISTORY=false" >> $GITHUB_ENV
+          fi
 
       - name: Store allure history
         if: env.UPLOAD_HISTORY == 'true'
