@@ -73,14 +73,17 @@ jobs:
         with:
           name: allure-results
           path: allure-results/
-      - name: Install Allure
+      - name: Install Allure - Download and Extract
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.zip
           unzip allure-2.30.0.zip -d /opt/allure
           chmod +x /opt/allure/allure-2.30.0/bin/allure
+          ls -l /opt/allure/allure-2.30.0/bin/  # Debug: Verify binary presence
+      - name: Install Allure - Update PATH and Verify
+        run: |
+          export PATH=$PATH:/opt/allure/allure-2.30.0/bin
           echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
-          # Verify Allure installation
-          allure --version
+          allure --version  # Verify Allure installation
       - name: Generate Allure report
         run: allure generate -c allure-results -o _site
       - name: Upload Allure report
