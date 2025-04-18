@@ -50,6 +50,7 @@ jobs:
           file artifacts.zip || echo "File check failed"
           ls -l artifacts.zip
           unzip -l artifacts.zip || echo "Failed to list zip contents"
+          head -n 20 artifacts.zip || echo "Failed to read zip contents"
 
       - name: Extract artifact
         if: env.ARTIFACT_ID != 'none'
