@@ -22,6 +22,7 @@ class SimpleButtonPage(BasePage):
     def click_button(self):
         wait = WebDriverWait(self.browser, 10)  # Wait up to 10 seconds
         button = wait.until(EC.element_to_be_clickable(self.button()))
+        self.browser.execute_script("arguments[0].scrollIntoView(true);", button)
         return button.click()
 
     def result(self):
