@@ -6,6 +6,7 @@ import pytest
 def browser():
     options = Options()
     options.add_argument('--headless')
+    options.add_argument("--no-sandbox")
     chrome_browser = webdriver.Chrome(options=options)
     chrome_browser.implicitly_wait(3)
     return chrome_browser
