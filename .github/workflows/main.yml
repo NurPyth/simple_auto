@@ -20,28 +20,48 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get latest artifact ID
+      - name: Get latest allure-results artifact ID
         run: |
-          ARTIFACT_ID=$(curl -s -H "Accept: application/vnd.github+json" \
+          ARTIFACTS=$(curl -s -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts" | jq -r '.artifacts[0].id')
-
-          echo "ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
+          "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts")
+          
+          ARTIFACT_ID=$(echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.name == "allure-results") | .id' | head -n 1)
+          
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "No allure-results artifact found, proceeding without history."
+            echo "ARTIFACT_ID=none" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
+          fi
 
       - name: Download artifact
+        if: env.ARTIFACT_ID != 'none'
         run: |
           curl -L -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
           "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts/$ARTIFACT_ID/zip" -o artifacts.zip
 
+      - name: Debug artifact
+        if: env.ARTIFACT_ID != 'none'
+        run: |
+          file artifacts.zip || echo "File check failed"
+          ls -l artifacts.zip
+
       - name: Extract artifact
-        run: mkdir -p allure-results && unzip artifacts.zip -d allure-results
+        if: env.ARTIFACT_ID != 'none'
+        run: |
+          mkdir -p allure-results
+          unzip artifacts.zip -d allure-results || echo "Failed to unzip, proceeding without history"
 
       - name: Store allure history
+        if: env.ARTIFACT_ID != 'none'
         uses: actions/upload-artifact@v4
         with:
           name: allure-history
-          path: allure-results
+          path: allure-results/
           retention-days: 1
 
   test:
@@ -50,43 +70,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
-      - name: Install Chrome and Chromedriver
+      - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: '135'
-
+      - name: Install Chromedriver
+        uses: nanasess/setup-chromedriver@v2
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Download Allure history
         uses: actions/download-artifact@v4
         with:
           name: allure-history
           path: allure-results/
-
+        continue-on-error: true
       - name: Start Xvfb for non-headless mode
         run: Xvfb :99 -screen 0 1920x1080x24 &
         env:
           DISPLAY: ':99'
-
       - name: Run first test
         if: github.event.inputs.deployment_target == 'first_test'
         run: pytest tests/test_button_page.py --alluredir=allure-results
         env:
           DISPLAY: ':99'
-
       - name: Run second test
         if: github.event.inputs.deployment_target == 'second_test'
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
         env:
           DISPLAY: ':99'
-
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -102,24 +117,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
           name: allure-results
           path: allure-results/
-
-      - name: Install Allure
+      - name: Install Allure - Download and Extract
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.zip
           unzip allure-2.30.0.zip -d /opt/allure
           chmod +x /opt/allure/allure-2.30.0/bin/allure
-          echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_ENV
+          ls -l /opt/allure/allure-2.30.0/bin/
+      - name: Install Allure - Update PATH and Verify
+        run: |
+          export PATH=$PATH:/opt/allure/allure-2.30.0/bin
+          echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
           allure --version
-
       - name: Generate Allure report
         run: allure generate -c allure-results -o _site
-
       - name: Upload Allure report
         uses: actions/upload-artifact@v4
         with:
@@ -143,12 +158,10 @@ jobs:
         with:
           name: allure-report
           path: _site/
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site/
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
