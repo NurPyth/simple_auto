@@ -1,4 +1,4 @@
-name: Automated tests
+name: Automated Tests
 
 on:
   workflow_dispatch:
@@ -17,87 +17,96 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4  # Updated to latest version
+      - name: Set up Python
+        uses: actions/setup-python@v5  # Updated to latest version
         with:
-          python-version: "3.13"
-
+          python-version: '3.13'
       - name: Install Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: '135'  # Match the version from the error
+      - name: Install Chromedriver
+        uses: nanasess/setup-chromedriver@v2
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Run first test
+      - name: Start Xvfb for non-headless mode
+        run: Xvfb :99 -screen 0 1920x1080x24 &
+        env:
+          DISPLAY: ':99'
+      - name: Run first_test
         if: github.event.inputs.deployment_target == 'first_test'
         run: pytest tests/test_button_page.py --alluredir=allure-results
-      
-      - name: Run second test
+        env:
+          DISPLAY: ':99'
+      - name: Run second_test
         if: github.event.inputs.deployment_target == 'second_test'
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
-
-      - name: Store Allure results
+        env:
+          DISPLAY: ':99'
+      - name: Upload Allure results
+        if: always()  # Upload even if tests fail
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: allure-results
+          path: allure-results/
+          retention-days: 1
+      - name: Upload debug artifacts
+        if: failure()  # Upload screenshots/page source on failure
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-artifacts
+          path: |
+            *.png
+            *.html
           retention-days: 1
 
   generate-report:
     runs-on: ubuntu-latest
     needs: test
-    name: Generate report
+    name: Generate Allure Report
     steps:
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'microsoft'
-          java-version: '17'
-
-      - name: Install Allure
-        run: |
-          pip install allure-pytest
-          wget https://github.com/allure-framework/allure2/releases/latest/download/allure-commandline.zip
-          unzip allure-commandline.zip -d /opt/allure
-          echo "/opt/allure/allure-2.*/bin" >> $GITHUB_PATH
-
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
           name: allure-results
-          path: allure-results
-
-      - name: Generate Allure report
+          path: allure-results/
+      - name: Install Allure
         run: |
-          /opt/allure/allure-2.*/bin/allure generate -c allure-results -o _site
-
-      - name: Store generated report
+          wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.zip
+          unzip allure-2.30.0.zip -d /opt/allure
+          echo "/opt/allure/bin" >> $GITHUB_PATH
+      - name: Generate Allure report
+        run: allure generate -c allure-results -o _site
+      - name: Upload Allure report
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: _site
+          path: _site/
           retention-days: 1
 
   publish-report:
     runs-on: ubuntu-latest
     needs: generate-report
-    name: Publish report
+    name: Publish Allure Report
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download generated report
+      - name: Download Allure report
         uses: actions/download-artifact@v4
         with:
           name: allure-report
-          path: _site
-
+          path: _site/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
-
+          path: _site/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
