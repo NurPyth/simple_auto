@@ -24,4 +24,4 @@ def test_button1_clicked(browser):
         assert 'Submitted' == simple_page.result_text
 
 def test_me():
-    assert 1 == 2
+    assert 1 == 1

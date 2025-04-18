@@ -4,3 +4,4 @@ pages/__pycashe__/
 tests/__pycashe__/
 venv
 results/
+allure-report/
