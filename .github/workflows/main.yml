@@ -11,6 +11,7 @@ on:
         options:
           - first_test
           - second_test
+          - ALL
 
 jobs:
   download-history:
@@ -128,6 +129,11 @@ jobs:
       - name: Run second test
         if: github.event.inputs.deployment_target == 'second_test'
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
+        env:
+          DISPLAY: ':99'
+      - name: ALL
+        if: github.event.inputs.deployment_target == 'ALL'
+        run: pytest --alluredir=allure-results
         env:
           DISPLAY: ':99'
       - name: Upload Allure results
