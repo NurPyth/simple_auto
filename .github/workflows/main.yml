@@ -20,47 +20,71 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get latest allure-results artifact ID
+      - name: Get latest artifact IDs
         run: |
           ARTIFACTS=$(curl -s -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts")
           
-          ARTIFACT_ID=$(echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.name == "allure-results") | .id' | head -n 1)
+          ALLURE_ARTIFACT_ID=$(echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.name == "allure-results") | .id' | head -n 1)
+          PAGES_ARTIFACT_ID=$(echo "$ARTIFACTS" | jq -r '.artifacts[] | select(.name == "github-pages") | .id' | head -n 1)
           
-          if [ -z "$ARTIFACT_ID" ]; then
-            echo "No allure-results artifact found, proceeding without history."
-            echo "ARTIFACT_ID=none" >> $GITHUB_ENV
+          if [ -z "$ALLURE_ARTIFACT_ID" ]; then
+            echo "No allure-results artifact found."
+            echo "ALLURE_ARTIFACT_ID=none" >> $GITHUB_ENV
           else
-            echo "ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
+            echo "ALLURE_ARTIFACT_ID=$ALLURE_ARTIFACT_ID" >> $GITHUB_ENV
+          fi
+          
+          if [ -z "$PAGES_ARTIFACT_ID" ]; then
+            echo "No github-pages artifact found."
+            echo "PAGES_ARTIFACT_ID=none" >> $GITHUB_ENV
+          else
+            echo "PAGES_ARTIFACT_ID=$PAGES_ARTIFACT_ID" >> $GITHUB_ENV
           fi
 
-      - name: Download artifact
-        if: env.ARTIFACT_ID != 'none'
+      - name: Download artifacts
+        if: env.ALLURE_ARTIFACT_ID != 'none' || env.PAGES_ARTIFACT_ID != 'none'
         run: |
-          curl -L -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts/$ARTIFACT_ID/zip" -o artifacts.zip
+          if [ "$ALLURE_ARTIFACT_ID" != "none" ]; then
+            curl -L -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts/$ALLURE_ARTIFACT_ID/zip" -o artifacts.zip
+          fi
+          if [ "$PAGES_ARTIFACT_ID" != "none" ]; then
+            curl -L -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts/$PAGES_ARTIFACT_ID/zip" -o pages.zip
+          fi
 
-      - name: Debug artifact
-        if: env.ARTIFACT_ID != 'none'
+      - name: Extract artifacts
+        if: env.ALLURE_ARTIFACT_ID != 'none' || env.PAGES_ARTIFACT_ID != 'none'
         run: |
-          file artifacts.zip || echo "File check failed"
-          ls -l artifacts.zip
-          unzip -l artifacts.zip || echo "Failed to list zip contents"
-          head -n 20 artifacts.zip || echo "Failed to read zip contents"
+          mkdir -p allure-results pages_history
+          if [ -f artifacts.zip ]; then
+            unzip artifacts.zip -d allure-results || echo "Failed to unzip allure-results, proceeding without history"
+          fi
+          if [ -f pages.zip ]; then
+            unzip pages.zip -d old_pages || echo "Failed to unzip github-pages, proceeding without history"
+            if [ -f old_pages/artifact.tar ]; then
+              tar -xvf old_pages/artifact.tar -C pages_history || echo "Failed to extract artifact.tar, proceeding without history"
+            fi
+          fi
 
-      - name: Extract artifact
-        if: env.ARTIFACT_ID != 'none'
+      - name: Copy history to allure-results
+        if: env.PAGES_ARTIFACT_ID != 'none'
         run: |
-          mkdir -p allure-results
-          unzip artifacts.zip -d allure-results || echo "Failed to unzip, proceeding without history"
-          ls -l allure-results/ || echo "No files extracted"
+          if [ -d pages_history/history ]; then
+            cp -r pages_history/history/* allure-results/ || echo "No history files to copy, proceeding without history"
+          else
+            echo "No history directory found, proceeding without history"
+          fi
 
       - name: Check allure-results content
-        if: env.ARTIFACT_ID != 'none'
+        if: env.ALLURE_ARTIFACT_ID != 'none' || env.PAGES_ARTIFACT_ID != 'none'
         run: |
           if [ -n "$(ls -A allure-results/)" ]; then
             echo "Files found in allure-results, proceeding with upload."
@@ -71,7 +95,7 @@ jobs:
           fi
 
       - name: Store allure history
-        if: env.ARTIFACT_ID != 'none' && env.UPLOAD_HISTORY == 'true'
+        if: env.UPLOAD_HISTORY == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: allure-history
@@ -141,7 +165,6 @@ jobs:
           wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.zip
           unzip allure-2.30.0.zip -d /opt/allure
           chmod +x /opt/allure/allure-2.30.0/bin/allure
-          ls -l /opt/allure/allure-2.30.0/bin/
       - name: Install Allure - Update PATH and Verify
         run: |
           export PATH=$PATH:/opt/allure/allure-2.30.0/bin
