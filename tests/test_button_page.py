@@ -14,5 +14,6 @@ def test_button1_clicked(browser):
     simple_page = SimpleButtonPage(browser)
     simple_page.open()
     WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, 'submit-id-submit')))
+    browser.get_screenshot_as_file("screenshot.png")
     simple_page.click_button()
     assert 'Submitted' == simple_page.result_text
