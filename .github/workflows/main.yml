@@ -11,7 +11,6 @@ on:
         options:
           - first_test
           - second_test
-          - ALL
 
 jobs:
   download-history:
@@ -64,9 +63,11 @@ jobs:
       - name: Extract artifacts
         if: env.ALLURE_ARTIFACT_ID != 'none' || env.PAGES_ARTIFACT_ID != 'none'
         run: |
-          mkdir -p allure-results pages_history
+          mkdir -p allure-results/history pages_history
           if [ -f artifacts.zip ]; then
             unzip artifacts.zip -d allure-results || echo "Failed to unzip allure-results, proceeding without history"
+            # Move history files to allure-results/history/
+            find allure-results -maxdepth 1 -name "*-trend.json" -o -name "history.json" -exec mv {} allure-results/history/ \;
           fi
           if [ -f pages.zip ]; then
             unzip pages.zip -d old_pages || echo "Failed to unzip github-pages, proceeding without history"
@@ -79,8 +80,8 @@ jobs:
         if: env.PAGES_ARTIFACT_ID != 'none'
         run: |
           if [ -d pages_history/history ]; then
-            cp -r pages_history/history/* allure-results/ || echo "No history files to copy, proceeding without history"
-            ls -l allure-results/  # Debug: Check copied files
+            cp -r pages_history/history/* allure-results/history/ || echo "No history files to copy, proceeding without history"
+            ls -l allure-results/history/  # Debug: Check copied files
           else
             echo "No history directory found, proceeding without history"
           fi
@@ -142,11 +143,6 @@ jobs:
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
         env:
           DISPLAY: ':99'
-      - name: ALL
-        if: github.event.inputs.deployment_target == 'ALL'
-        run: pytest --alluredir=allure-results
-        env:
-          DISPLAY: ':99'
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -179,10 +175,11 @@ jobs:
           allure --version
       - name: Generate Allure report
         run: |
-          # Copy history to output directory to ensure trends are included
+          # Ensure history directory exists
+          mkdir -p _site/history
+          # Copy history from allure-results/history/ to _site/history/
           if [ -d allure-results/history ]; then
-            mkdir -p _site/history
-            cp -r allure-results/history/* _site/history/
+            cp -r allure-results/history/* _site/history/ || echo "No history files to copy"
           fi
           allure generate allure-results -o _site
       - name: Upload Allure report
