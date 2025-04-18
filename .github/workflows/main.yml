@@ -28,8 +28,8 @@ jobs:
       - name: install dependencies
         run: pip install -r requirements.txt
       - name: Upload Screenshot
-        if: failure()  # Загружает скриншот только при ошибке теста
-        uses: actions/upload-artifact@v3
+        if: failure()
+        uses: actions/upload-artifact@latest
         with:
           name: screenshots
           path: tests/screenshots/
