@@ -26,7 +26,7 @@ jobs:
           && 
           curl -L -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
           "https://api.github.com/repos/NurPyth/simple_auto/actions/artifacts/$ARTIFACT_ID/zip" -o artfacts.zip
-      - run: mdkir allure-results && unzip artifacts.zip -d allure-results
+      - run: mkdir allure-results && unzip artifacts.zip -d allure-results
       - name: Store allure history
         uses: actions/upload-artifact@v4
         with:
