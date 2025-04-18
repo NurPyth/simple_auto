@@ -2,4 +2,5 @@
 __pycache__/
 pages/__pycashe__/
 tests/__pycashe__/
-venv/
+venv
+results/

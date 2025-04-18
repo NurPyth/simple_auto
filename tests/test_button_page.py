@@ -22,3 +22,6 @@ def test_button1_clicked(browser):
         simple_page.click_button()
     with allure.step("Check the result"):
         assert 'Submitted' == simple_page.result_text
+
+def test_me():
+    assert 1 == 2
