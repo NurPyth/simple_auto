@@ -66,11 +66,12 @@ jobs:
       - name: Copy history from pages to allure
         run: |
           mkdir -p allure-results/history
-          if [ -d pages_history/history ]; then
-            echo "Copying history from pages_history..."
-            cp -vr pages_history/history/* allure-results/history/ || echo "No history to copy"
+          HISTORY_DIR=$(find pages_history -type d -name "history" | head -n 1)
+          if [ -n "$HISTORY_DIR" ]; then
+            echo "Found history in $HISTORY_DIR"
+            cp -vr "$HISTORY_DIR"/* allure-results/history/ || echo "No history to copy"
           else
-            echo "No history directory in pages_history"
+            echo "No history directory found"
           fi
           echo "Final contents of allure-results/history:"
           ls -l allure-results/history/ || echo "Empty"
