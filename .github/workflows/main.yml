@@ -15,12 +15,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Upgrade Actions Runner
-        run: sudo apt update && sudo apt upgrade
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4.6.2
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: setup Python
@@ -31,12 +26,6 @@ jobs:
         run: sudo apt-get install google-chrome-stable
       - name: install dependencies
         run: pip install -r requirements.txt
-      - name: Upload Screenshot
-        if: failure()
-        uses: actions/upload-artifact@latest
-        with:
-          name: screenshots
-          path: tests/screenshots/
       - name: first_test
         if: "github.event.inputs.deployment_target == 'first_test'"
         run: pytest tests/test_button_page.py
