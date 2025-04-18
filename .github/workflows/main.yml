@@ -18,26 +18,33 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: setup Python
+      
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.13"
+
       - name: Install Chrome
-        run: sudo apt-get install google-chrome-stable
-      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: first_test
-        if: "github.event.inputs.deployment_target == 'first_test'"
+
+      - name: Run first test
+        if: github.event.inputs.deployment_target == 'first_test'
         run: pytest tests/test_button_page.py --alluredir=allure-results
-      - name: second_test
-        if: "github.event.inputs.deployment_target == 'second_test'"
+      
+      - name: Run second test
+        if: github.event.inputs.deployment_target == 'second_test'
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
-      - name: Store allure results
+
+      - name: Store Allure results
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path:
-            allure-results
+          path: allure-results
           retention-days: 1
 
   generate-report:
@@ -45,40 +52,52 @@ jobs:
     needs: test
     name: Generate report
     steps:
-      - uses: actions/setup-java@v3
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
-          distribution: 'microsoft' 
+          distribution: 'microsoft'
           java-version: '17'
+
       - name: Install Allure
-      - run: |
-            pip install allure-pytest
-            wget https://github.com/allure-framework/allure2/releases/latest/download/allure-commandline.zip
-            unzip allure-commandline.zip -d /opt/allure
-            echo "/opt/allure/allure-2.*/bin" >> $GITHUB_PATH
-      - name: Download all workflow run artifacts
+        run: |
+          pip install allure-pytest
+          wget https://github.com/allure-framework/allure2/releases/latest/download/allure-commandline.zip
+          unzip allure-commandline.zip -d /opt/allure
+          echo "/opt/allure/allure-2.*/bin" >> $GITHUB_PATH
+
+      - name: Download Allure results
         uses: actions/download-artifact@v4
-      - run: allure generate -c allure-results -o _site
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Generate Allure report
+        run: |
+          /opt/allure/allure-2.*/bin/allure generate -c allure-results -o _site
+
       - name: Store generated report
         uses: actions/upload-artifact@v4
         with:
-          name: _site
-          path:
-            _site
+          name: allure-report
+          path: _site
           retention-days: 1
 
   publish-report:
     runs-on: ubuntu-latest
     needs: generate-report
-    name: Report publication
+    name: Publish report
     steps:
-      - name: Download all workflow run artifacts
+      - name: Download generated report
         uses: actions/download-artifact@v4
+        with:
+          name: allure-report
+          path: _site
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1.2.9
-  
-  
-  
-
+        uses: actions/deploy-pages@v1
