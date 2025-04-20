@@ -99,7 +99,7 @@ jobs:
     outputs:
       first_test: ${{ steps.first_test.outcome }}
       second_test: ${{ steps.second_test.outcome }}
-      ALL: ${{ steps.all_tests.outcome }}
+      ALL: ${{ steps.ALL.outcome }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -140,7 +140,7 @@ jobs:
         env:
           DISPLAY: ':99'
       - name: Run ALL tests
-        id: all_tests
+        id: ALL
         if: github.event.inputs.deployment_target == 'ALL'
         run: pytest --alluredir=allure-results
         continue-on-error: true
