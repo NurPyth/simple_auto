@@ -102,6 +102,8 @@ jobs:
       ALL: ${{ steps.ALL.outcome }}
       test_status: ${{ steps.set_test_status.outputs.test_status }}
     steps:
+      - name: Debug deployment target
+        run: echo "Deployment target: ${{ github.event.inputs.deployment_target }}"
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Python
@@ -152,16 +154,32 @@ jobs:
       - name: Set test status
         id: set_test_status
         run: |
-          if [ -z "$TEST_EXIT_CODE" ]; then
-            echo "TEST_EXIT_CODE is not set, defaulting to failure"
-            echo "test_status=failure" >> $GITHUB_OUTPUT
-          else
+          echo "Deployment target in Set test status: ${{ github.event.inputs.deployment_target }}"
+          echo "TEST_EXIT_CODE: $TEST_EXIT_CODE"
+          if [ "${{ github.event.inputs.deployment_target }}" == "first_test" ] && [ "${{ steps.first_test.outcome }}" == "success" ]; then
             if [ "$TEST_EXIT_CODE" -eq 0 ]; then
               echo "test_status=success" >> $GITHUB_OUTPUT
             else
               echo "test_status=failure" >> $GITHUB_OUTPUT
             fi
+          elif [ "${{ github.event.inputs.deployment_target }}" == "second_test" ] && [ "${{ steps.second_test.outcome }}" == "success" ]; then
+            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
+              echo "test_status=success" >> $GITHUB_OUTPUT
+            else
+              echo "test_status=failure" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.event.inputs.deployment_target }}" == "ALL" ] && [ "${{ steps.ALL.outcome }}" == "success" ]; then
+            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
+              echo "test_status=success" >> $GITHUB_OUTPUT
+            else
+              echo "test_status=failure" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No matching test ran or test was skipped, defaulting to failure"
+            echo "test_status=failure" >> $GITHUB_OUTPUT
           fi
+      - name: Debug test status
+        run: cat $GITHUB_OUTPUT
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -189,7 +207,7 @@ jobs:
           chmod +x /opt/allure/allure-2.30.0/bin/allure
       - name: Install Allure - Update PATH and Verify
         run: |
-          export PATH=$PATH:/opt/allure/allure-2.30.0/bin
+          export PATH=$PATH:/opt/allure/all SELF/allure-2.30.0/bin
           echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
           allure --version
       - name: Generate Allure report
