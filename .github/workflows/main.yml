@@ -142,7 +142,7 @@ jobs:
       - name: ALL
         id: ALL
         if: github.event.inputs.deployment_target == 'ALL'
-        run: pytest --alluredir=allure-results
+        run: pytestt --alluredir=allure-results
         continue-on-error: true
         env:
           DISPLAY: ':99'
