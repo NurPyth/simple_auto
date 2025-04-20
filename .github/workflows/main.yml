@@ -207,7 +207,7 @@ jobs:
           chmod +x /opt/allure/allure-2.30.0/bin/allure
       - name: Install Allure - Update PATH and Verify
         run: |
-          export PATH=$PATH:/opt/allure/all SELF/allure-2.30.0/bin
+          export PATH=$PATH:/opt/allure/allure-2.30.0/bin
           echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
           allure --version
       - name: Generate Allure report
