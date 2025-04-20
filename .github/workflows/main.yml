@@ -151,7 +151,7 @@ jobs:
         run: |
           echo "First test outcome: ${{ steps.first_test.outcome }}"
           echo "Second test outcome: ${{ steps.second_test.outcome }}"
-          echo "ALL tests outcome: ${{ steps.all_tests.outcome }}"
+          echo "ALL tests outcome: ${{ steps.ALL.outcome }}"
 
       - name: Upload Allure results
         if: always()
