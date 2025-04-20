@@ -213,7 +213,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: success
-        if: need.test.outputs.first_test != 'failure' && need.test.outputs.second_test != 'failure' && need.test.outputs.ALL != 'failure'
+        if: needs.test.outputs.first_test != 'failure' && needs.test.outputs.second_test != 'failure' && needs.test.outputs.ALL != 'failure'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
