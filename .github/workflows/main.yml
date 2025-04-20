@@ -234,6 +234,7 @@ jobs:
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+          curl --location 'https://api.telegram.org/bot${{ secrets.TG }}/sendMessage' --header 'Content-Type: application/json' --data '{"chat_id": 5007607925,"text": "Test passed. Report is here https://nurpyth.github.io/simple_auto"}'
       - name: Notify failure
         if: needs.test.outputs.first_test == 'failure' || needs.test.outputs.second_test == 'failure' || needs.test.outputs.ALL == 'failure'
         run: |
@@ -241,3 +242,4 @@ jobs:
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
           --data "{\"text\": \":no_entry: Tests finished with failures. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+          curl --location 'https://api.telegram.org/bot${{ secrets.TG }}/sendMessage' --header 'Content-Type: application/json' --data '{"chat_id": 5007607925,"text": "Test failed. Report is here https://nurpyth.github.io/simple_auto"}'
