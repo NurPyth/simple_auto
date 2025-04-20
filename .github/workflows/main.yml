@@ -22,6 +22,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Get latest artifact IDs
+        id: get_artifacts
         run: |
           ARTIFACTS=$(curl -s -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
@@ -55,7 +56,7 @@ jobs:
           mkdir -p allure-results/history pages_history
           if [ -f artifacts.zip ]; then
             unzip artifacts.zip -d allure-results || echo "Failed to unzip allure-results"
-            find allure-results -maxdepth 1 \( -name "*-trend.json" -o -name "history.json" \) -exec mv -v {} allure-results/history/ \;
+            find allure-results -maxdepth 1 $ -name "*-trend.json" -o -name "history.json" $ -exec mv -v {} allure-results/history/ \;
           fi
           if [ -f pages.zip ]; then
             unzip pages.zip -d old_pages || echo "Failed to unzip githubpages"
@@ -74,19 +75,8 @@ jobs:
           else
             echo "No history directory found"
           fi
-          echo "Final contents of allure-results/history:"
-          ls -l allure-results/history/ || echo "Empty"
-
-      - name: Check allure-results content
-        run: |
-          if [ -n "$(ls -A allure-results/)" ]; then
-            echo "UPLOAD_HISTORY=true" >> $GITHUB_ENV
-          else
-            echo "UPLOAD_HISTORY=false" >> $GITHUB_ENV
-          fi
 
       - name: Store allure history
-        if: env.UPLOAD_HISTORY == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: allure-history
@@ -97,91 +87,66 @@ jobs:
     runs-on: ubuntu-latest
     needs: download-history
     outputs:
-      first_test: ${{ steps.first_test.outcome }}
-      second_test: ${{ steps.second_test.outcome }}
-      ALL: ${{ steps.ALL.outcome }}
       test_status: ${{ steps.set_test_status.outputs.test_status }}
     steps:
       - name: Debug deployment target
         run: echo "Deployment target: ${{ github.event.inputs.deployment_target }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: '135'
+
       - name: Install Chromedriver
         uses: nanasess/setup-chromedriver@v2
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Download Allure history
         uses: actions/download-artifact@v4
         with:
           name: allure-history
           path: allure-results/
         continue-on-error: true
+
       - name: Start Xvfb for non-headless mode
         run: Xvfb :99 -screen 0 1920x1080x24 &
         env:
           DISPLAY: ':99'
-      - name: Run first test
-        id: first_test
-        if: github.event.inputs.deployment_target == 'first_test'
-        run: pytest tests/test_button_page.py --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
-        continue-on-error: true
-        env:
-          DISPLAY: ':99'
-      - name: Run second test
-        id: second_test
-        if: github.event.inputs.deployment_target == 'second_test'
-        run: pytest tests/test_like_a_button_page.py --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
-        continue-on-error: true
-        env:
-          DISPLAY: ':99'
-      - name: ALL
-        id: ALL
-        if: github.event.inputs.deployment_target == 'ALL'
-        run: pytest tests/ --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
-        continue-on-error: true
-        env:
-          DISPLAY: ':99'
-      - name: Debug TEST_EXIT_CODE
-        run: echo "TEST_EXIT_CODE=$TEST_EXIT_CODE"
+
+      - name: Run tests based on deployment target
+        id: run_tests
+        run: |
+          if [ "${{ github.event.inputs.deployment_target }}" == "first_test" ]; then
+            pytest tests/test_button_page.py --alluredir=allure-results || echo "First test failed"
+          elif [ "${{ github.event.inputs.deployment_target }}" == "second_test" ]; then
+            pytest tests/test_like_a_button_page.py --alluredir=allure-results || echo "Second test failed"
+          elif [ "${{ github.event.inputs.deployment_target }}" == "ALL" ]; then
+            pytest tests/ --alluredir=allure-results || echo "All tests failed"
+          else
+            echo "Invalid deployment target."
+            exit 1
+          fi
+
       - name: Set test status
         id: set_test_status
         run: |
-          echo "Deployment target in Set test status: ${{ github.event.inputs.deployment_target }}"
-          echo "TEST_EXIT_CODE: $TEST_EXIT_CODE"
-          if [ "${{ github.event.inputs.deployment_target }}" == "first_test" ] && [ "${{ steps.first_test.outcome }}" == "success" ]; then
-            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
-              echo "test_status=success" >> $GITHUB_OUTPUT
-            else
-              echo "test_status=failure" >> $GITHUB_OUTPUT
-            fi
-          elif [ "${{ github.event.inputs.deployment_target }}" == "second_test" ] && [ "${{ steps.second_test.outcome }}" == "success" ]; then
-            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
-              echo "test_status=success" >> $GITHUB_OUTPUT
-            else
-              echo "test_status=failure" >> $GITHUB_OUTPUT
-            fi
-          elif [ "${{ github.event.inputs.deployment_target }}" == "ALL" ] && [ "${{ steps.ALL.outcome }}" == "success" ]; then
-            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
-              echo "test_status=success" >> $GITHUB_OUTPUT
-            else
-              echo "test_status=failure" >> $GITHUB_OUTPUT
-            fi
+          if [ $? -eq 0 ]; then
+            echo "test_status=success" >> $GITHUB_OUTPUT
           else
-            echo "No matching test ran or test was skipped, defaulting to failure"
             echo "test_status=failure" >> $GITHUB_OUTPUT
           fi
-      - name: Debug test status
-        run: cat $GITHUB_OUTPUT
+
       - name: Upload Allure results
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
@@ -195,21 +160,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
           name: allure-results
           path: allure-results/
+
       - name: Install Allure - Download and Extract
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.zip
           unzip allure-2.30.0.zip -d /opt/allure
           chmod +x /opt/allure/allure-2.30.0/bin/allure
+
       - name: Install Allure - Update PATH and Verify
         run: |
           export PATH=$PATH:/opt/allure/allure-2.30.0/bin
           echo "/opt/allure/allure-2.30.0/bin" >> $GITHUB_PATH
           allure --version
+
       - name: Generate Allure report
         run: |
           mkdir -p _site/history
@@ -242,30 +211,28 @@ jobs:
         with:
           name: allure-report
           path: _site/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site/
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Debug test outcomes
-        run: |
-          echo "first_test outcome: ${{ needs.test.outputs.first_test }}"
-          echo "second_test outcome: ${{ needs.test.outputs.second_test }}"
-          echo "ALL outcome: ${{ needs.test.outputs.ALL }}"
-          echo "Test status: ${{ needs.test.outputs.test_status }}"
+
       - name: Send Slack notification (Success)
-        if: needs.test.outputs.test_status == 'success'
+        if: ${{ needs.test.outputs.test_status == 'success' }}
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
-          --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}" \
+          --data "{\"text\": \":white_check_mark: Tests finished successfully! Report is here: https://nurpyth.github.io/simple_auto/\"}" \
           || echo "Failed to send Slack notification"
+
       - name: Send Slack notification (Failure)
-        if: needs.test.outputs.test_status == 'failure'
+        if: ${{ needs.test.outputs.test_status == 'failure' }}
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
-          --data "{\"text\": \":no_entry: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}" \
+          --data "{\"text\": \":no_entry: Tests failed! Report is here: https://nurpyth.github.io/simple_auto/\"}" \
           || echo "Failed to send Slack notification"
