@@ -100,6 +100,7 @@ jobs:
       first_test: ${{ steps.first_test.outcome }}
       second_test: ${{ steps.second_test.outcome }}
       ALL: ${{ steps.ALL.outcome }}
+      test_status: ${{ steps.set_test_status.outputs.test_status }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -128,24 +129,39 @@ jobs:
       - name: Run first test
         id: first_test
         if: github.event.inputs.deployment_target == 'first_test'
-        run: pytest tests/test_button_page.py --alluredir=allure-results
+        run: pytest tests/test_button_page.py --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
         continue-on-error: true
         env:
           DISPLAY: ':99'
       - name: Run second test
         id: second_test
         if: github.event.inputs.deployment_target == 'second_test'
-        run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
+        run: pytest tests/test_like_a_button_page.py --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
         continue-on-error: true
         env:
           DISPLAY: ':99'
       - name: ALL
         id: ALL
         if: github.event.inputs.deployment_target == 'ALL'
-        run: pytestt --alluredir=allure-results
+        run: pytest tests/ --alluredir=allure-results; echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
         continue-on-error: true
         env:
           DISPLAY: ':99'
+      - name: Debug TEST_EXIT_CODE
+        run: echo "TEST_EXIT_CODE=$TEST_EXIT_CODE"
+      - name: Set test status
+        id: set_test_status
+        run: |
+          if [ -z "$TEST_EXIT_CODE" ]; then
+            echo "TEST_EXIT_CODE is not set, defaulting to failure"
+            echo "test_status=failure" >> $GITHUB_OUTPUT
+          else
+            if [ "$TEST_EXIT_CODE" -eq 0 ]; then
+              echo "test_status=success" >> $GITHUB_OUTPUT
+            else
+              echo "test_status=failure" >> $GITHUB_OUTPUT
+            fi
+          fi
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -215,15 +231,23 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Debug test outcomes
+        run: |
+          echo "first_test outcome: ${{ needs.test.outputs.first_test }}"
+          echo "second_test outcome: ${{ needs.test.outputs.second_test }}"
+          echo "ALL outcome: ${{ needs.test.outputs.ALL }}"
+          echo "Test status: ${{ needs.test.outputs.test_status }}"
       - name: Send Slack notification (Success)
-        if: github.event.inputs.deployment_target == 'first_test' && needs.test.outputs.first_test == 'success' || github.event.inputs.deployment_target == 'second_test' && needs.test.outputs.second_test == 'success' || github.event.inputs.deployment_target == 'ALL' && needs.test.outputs.ALL == 'success'
+        if: needs.test.outputs.test_status == 'success'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
-          --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+          --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}" \
+          || echo "Failed to send Slack notification"
       - name: Send Slack notification (Failure)
-        if: github.event.inputs.deployment_target == 'first_test' && needs.test.outputs.first_test == 'failure' || github.event.inputs.deployment_target == 'second_test' && needs.test.outputs.second_test == 'failure' || github.event.inputs.deployment_target == 'ALL' && needs.test.outputs.ALL == 'failure'
+        if: needs.test.outputs.test_status == 'failure'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
-          --data "{\"text\": \":no_entry: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+          --data "{\"text\": \":no_entry: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}" \
+          || echo "Failed to send Slack notification"
