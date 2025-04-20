@@ -208,5 +208,9 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - send notification:
-          curl --location 'https://hooks.slack.com/services/${{ secrets.SLACK }}' --header 'Content-Type: application/json' --data '{"text": ":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/"}'
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          slack-message: ":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK }}
