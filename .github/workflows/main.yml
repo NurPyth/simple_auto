@@ -58,7 +58,7 @@ jobs:
             find allure-results -maxdepth 1 \( -name "*-trend.json" -o -name "history.json" \) -exec mv -v {} allure-results/history/ \;
           fi
           if [ -f pages.zip ]; then
-            unzip pages.zip -d old_pages || echo "Failed to unzip github-pages"
+            unzip pages.zip -d old_pages || echo "Failed to unzip githubpages"
             if [ -f old_pages/artifact.tar ]; then
               tar -xvf old_pages/artifact.tar -C pages_history || echo "Failed to extract artifact.tar"
             fi
