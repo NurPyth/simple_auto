@@ -99,7 +99,7 @@ jobs:
     outputs:
       first_test: ${{ steps.first_test.outcome }}
       second_test: ${{ steps.second_test.outcome }}
-      ALL: ${{ steps.ALL.outcome }}
+      ALL: ${{ steps.all_tests.outcome }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -126,30 +126,32 @@ jobs:
         env:
           DISPLAY: ':99'
       - name: Run first test
+        id: first_test
         if: github.event.inputs.deployment_target == 'first_test'
         run: pytest tests/test_button_page.py --alluredir=allure-results
         continue-on-error: true
         env:
           DISPLAY: ':99'
       - name: Run second test
+        id: second_test
         if: github.event.inputs.deployment_target == 'second_test'
         run: pytest tests/test_like_a_button_page.py --alluredir=allure-results
         continue-on-error: true
         env:
           DISPLAY: ':99'
-      - name: ALL
+      - name: Run ALL tests
+        id: all_tests
         if: github.event.inputs.deployment_target == 'ALL'
         run: pytest --alluredir=allure-results
         continue-on-error: true
         env:
           DISPLAY: ':99'
-      - name: Upload Allure results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results
-          path: allure-results/
-          retention-days: 1
+
+      - name: Debug test outcomes
+        run: |
+          echo "First test outcome: ${{ steps.first_test.outcome }}"
+          echo "Second test outcome: ${{ steps.second_test.outcome }}"
+          echo "ALL tests outcome: ${{ steps.all_tests.outcome }}"
 
   generate-report:
     runs-on: ubuntu-latest
@@ -212,15 +214,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: success
+      - name: Notify success
         if: needs.test.outputs.first_test != 'failure' && needs.test.outputs.second_test != 'failure' && needs.test.outputs.ALL != 'failure'
         run: |
+          echo "All tests passed. Sending success notification."
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
-      - name: failure
+      - name: Notify failure
         if: needs.test.outputs.first_test == 'failure' || needs.test.outputs.second_test == 'failure' || needs.test.outputs.ALL == 'failure'
         run: |
+          echo "One or more tests failed. Sending failure notification."
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
-          --data "{\"text\": \":no_entry: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+          --data "{\"text\": \":no_entry: Tests finished with failures. Report is here: https://nurpyth.github.io/simple_auto/\"}"
