@@ -16,10 +16,6 @@ on:
 jobs:
   download-history:
     runs-on: ubuntu-latest
-    outputs:
-      first_test: ${{ steps.first_test.outcome }}
-      second_test: ${{ steps.second_test.outcome }}
-      ALL: ${{ steps.ALL.outcome }}
     name: Download history
     steps:
       - name: Install jq
@@ -100,6 +96,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: download-history
+    outputs:
+      first_test: ${{ steps.first_test.outcome }}
+      second_test: ${{ steps.second_test.outcome }}
+      ALL: ${{ steps.ALL.outcome }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -219,7 +219,7 @@ jobs:
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
       - name: failure
-        if: needs.test.outputs.first_test == 'failure' && needs.test.outputs.second_test == 'failure' && needs.test.outputs.ALL == 'failure'
+        if: needs.test.outputs.first_test == 'failure' || needs.test.outputs.second_test == 'failure' || needs.test.outputs.ALL == 'failure'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
