@@ -97,9 +97,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: download-history
     outputs:
-      first_test: ${{ steps.first_test.outputs }}
-      second_test: ${{ steps.second_test.outputs }}
-      ALL: ${{ steps.ALL.outputs }}
+      first_test: ${{ steps.first_test.outcome }}
+      second_test: ${{ steps.second_test.outcome }}
+      ALL: ${{ steps.ALL.outcome }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
