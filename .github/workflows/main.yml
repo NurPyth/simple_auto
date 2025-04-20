@@ -16,6 +16,10 @@ on:
 jobs:
   download-history:
     runs-on: ubuntu-latest
+    outputs:
+      first_test: ${{ steps.first_test.outcome }}
+      second_test: ${{ steps.second_test.outcome }}
+      ALL: ${{ steps.ALL.outcome }}
     name: Download history
     steps:
       - name: Install jq
@@ -135,7 +139,7 @@ jobs:
           DISPLAY: ':99'
       - name: ALL
         if: github.event.inputs.deployment_target == 'ALL'
-        run: pytest --alluredir=allure-results
+        run: pytestt --alluredir=allure-results
         continue-on-error: true
         env:
           DISPLAY: ':99'
@@ -208,11 +212,18 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Send Slack notification
+      - name: success
+        if: need.test.outputs.first_test != 'failure' && need.test.outputs.second_test != 'failure' && need.test.outputs.ALL != 'failure'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
+      - name: failure
+        if: need.test.outputs.first_test == 'failure' && need.test.outputs.second_test == 'failure' && need.test.outputs.ALL == 'failure'
+        run: |
+          curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
+          --header "Content-Type: application/json" \
+          --data "{\"text\": \":no_entry: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
 
           
        
