@@ -209,8 +209,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - send notification:
-          curl --location 'https://hooks.slack.com/services/${{ secrets.SLACK }}' \
-          --header 'Content-Type: application/json' \
-          --data '{
-          "title": "MyNewProduct",
-          "text": ":white_check_mark:ITests finished. Report is here: https://nurpyth.github.io/simple_auto/"}'
+          curl --location 'https://hooks.slack.com/services/${{ secrets.SLACK }}' --header 'Content-Type: application/json' --data '{"text": ":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/"}'
