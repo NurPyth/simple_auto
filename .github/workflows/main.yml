@@ -219,7 +219,7 @@ jobs:
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
       - name: failure
-        if: need.test.outputs.first_test == 'failure' && need.test.outputs.second_test == 'failure' && need.test.outputs.ALL == 'failure'
+        if: needs.test.outputs.first_test == 'failure' && needs.test.outputs.second_test == 'failure' && needs.test.outputs.ALL == 'failure'
         run: |
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
