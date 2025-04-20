@@ -223,14 +223,14 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Notify success
-        if: needs.test.outcome.first_test != 'failure' && needs.test.outcome.second_test != 'failure' && needs.test.outcome.ALL != 'failure'
+        if: needs.first_test.outcome != 'failure' && needs.second_test.outcome != 'failure' && needs.ALL.outcome != 'failure'
         run: |
           echo "All tests passed. Sending success notification."
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
           --header "Content-Type: application/json" \
           --data "{\"text\": \":white_check_mark: Tests finished. Report is here: https://nurpyth.github.io/simple_auto/\"}"
       - name: Notify failure
-        if: needs.test.outcome.first_test == 'failure' || needs.test.outcome.second_test == 'failure' || needs.test.outcome.ALL == 'failure'
+        if: needs.first_test.outcome == 'failure' || needs.second_test.outcome == 'failure' || needs.ALL.outcome == 'failure'
         run: |
           echo "One or more tests failed. Sending failure notification."
           curl --location "https://hooks.slack.com/services/${{ secrets.SLACK }}" \
